@@ -118,12 +118,33 @@
                 return tmp.textContent || tmp.innerText || "-";
             };
 
+            // --- Helper: 허가번호 정렬 파서 ---
+            const parsePermissionNo = (no) => {
+                if (!no) return { year: 0, seq: 0 };
+                // 1. 공백, '호' 제거
+                const clean = no.replace(/\s+/g, '').replace(/호$/, '');
+                // 2. 패턴 매칭: (한글 접두어)(2자리 연도)-(일련번호)
+                // 예: 수허24-1234 -> year: 24, seq: 1234
+                const match = clean.match(/([가-힣]+)(\d{2})-(\d+)/);
+                if (!match) return { year: 0, seq: 0 };
+                
+                let year = parseInt(match[2], 10);
+                const seq = parseInt(match[3], 10);
+                
+                // 연도 2자리 처리 (피벗 50 기준)
+                // 50 이하면 2000년대 (예: 24 -> 2024), 50 초과면 1900년대 (예: 99 -> 1999)
+                year = year <= 50 ? 2000 + year : 1900 + year;
+                
+                return { year, seq };
+            };
+
             // --- API Logic ---
             const URLS = {
                 standard: "http://apis.data.go.kr/1471000/MdeqStdCmdtInfoService01/getMdeqStdCmdtInfoInq01",
                 product: "http://apis.data.go.kr/1471000/MdeqPrdlstCmdtInfoService01/getMdeqPrdlstCmdtInfoInq01",
                 deviceInfo: "http://apis.data.go.kr/1471000/MdeqPrdlstInfoService02/getMdeqPrdlstInfoInq02", // 기존: 의료기기품목정보
-                devicePermission: "http://apis.data.go.kr/1471000/MdlpPrdlstPrmisnInfoService05/getMdlpPrdlstPrmisnList05" // 신규: 의료기기품목허가정보
+                // 변경됨: 서비스코드 05, 오퍼레이션 05로 업데이트
+                devicePermission: "http://apis.data.go.kr/1471000/MdlpPrdlstPrmisnInfoService05/getMdlpPrdlstPrmisnList05" 
             };
 
             const parseXML = (xmlText, type) => {
@@ -201,7 +222,8 @@
                             MNFC_MTH_CONT: getText("MNFC_MTH_CONT"),
                             SHAPE_STRUC_CONT: getText("SHAPE_STRUC_CONT"),
                             // Add ENTRPS (ENTP_NM) and TYPE_NAME
-                            ENTRPS: getText("ENTRPS") || getText("ENTP_NM"),
+                            // Check for 'MNFC_NM' or 'MANUFACTURER' for new manufacturer info as well
+                            ENTRPS: getText("MNFC_NM") || getText("ENTRPS") || getText("ENTP_NM"),
                             TYPE_NAME: getText("TYPE_NAME") || getText("MDL_NM"),
                             GRADE: getText("GRADE"),
                             ME_PRDLST_NM: getText("ME_PRDLST_NM") || getText("PRDLST_NM") 
@@ -262,7 +284,7 @@
                             MNFC_MTH_CONT: getVal("MNFC_MTH_CONT"),
                             SHAPE_STRUC_CONT: getVal("SHAPE_STRUC_CONT"),
                             // Add ENTRPS (ENTP_NM) and TYPE_NAME
-                            ENTRPS: getVal("ENTRPS") || getVal("ENTP_NM"),
+                            ENTRPS: getVal("MNFC_NM") || getVal("ENTRPS") || getVal("ENTP_NM"),
                             TYPE_NAME: getVal("TYPE_NAME") || getVal("MDL_NM"),
                             GRADE: getVal("GRADE"),
                             ME_PRDLST_NM: getVal("ME_PRDLST_NM") || getVal("PRDLST_NM")
@@ -356,10 +378,12 @@
                         } else if (searchType === 'product') {
                             mockData = Array(API_FETCH_SIZE).fill(null).map((_, i) => {
                                 const groupIdx = Math.floor((baseId + i) / 5);
+                                const years = ['22', '23', '24', '99', '05'];
+                                const year = years[i % years.length];
                                 return {
                                     id: baseId + i,
                                     PRDLST_NM: `테스트 품목 ${groupIdx}`,
-                                    MEDDEV_ITEM_NO: `제허 00-${1000 + groupIdx} 호`,
+                                    MEDDEV_ITEM_NO: `수허 ${year}-${1000 + groupIdx} 호`,
                                     CMDT_NM_INFO: `원자재 ${i}`,
                                     CMDT_DIVS_CD: "원재료",
                                     APRV_YN: "예",
@@ -556,7 +580,18 @@
                         }
                         groups[key].materials.push(item);
                     });
-                    return Object.values(groups);
+                    
+                    const groupArray = Object.values(groups);
+                    
+                    // Sort Product Search Results by Permission Number (Date Descending)
+                    groupArray.sort((a, b) => {
+                        const pa = parsePermissionNo(a.MEDDEV_ITEM_NO);
+                        const pb = parsePermissionNo(b.MEDDEV_ITEM_NO);
+                        if (pa.year !== pb.year) return pb.year - pa.year; // Year Descending
+                        return pb.seq - pa.seq; // Sequence Descending
+                    });
+                    
+                    return groupArray;
                 } else {
                     return rawResults;
                 }
@@ -865,4 +900,3 @@
     </script>
 </body>
 </html>
-
