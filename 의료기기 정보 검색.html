@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프라임시스템™ - 의료기기 정보 서비스</title>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #F5F5F5; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #C3002F; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #B00028; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Icons (Inlined for Stability) ---
+        const IconBase = ({ children, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>
+        );
+        const Search = (props) => <IconBase {...props}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></IconBase>;
+        const Settings = (props) => <IconBase {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconBase>;
+        const AlertCircle = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></IconBase>;
+        const Database = (props) => <IconBase {...props}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></IconBase>;
+        const Loader2 = (props) => <IconBase {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconBase>;
+        const Key = (props) => <IconBase {...props}><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2l-6.5 6.5"/><path d="m21 2-2.5 2.5"/><path d="m15.5 7.5 3 3v-3h3v-3h-3v-3h-3z"/></IconBase>;
+        const Globe = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></IconBase>;
+        const ShieldAlert = (props) => <IconBase {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></IconBase>;
+        const Layers = (props) => <IconBase {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></IconBase>;
+        const Box = (props) => <IconBase {...props}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></IconBase>;
+        const Filter = (props) => <IconBase {...props}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></IconBase>;
+        const ChevronLeft = (props) => <IconBase {...props}><polyline points="15 18 9 12 15 6"/></IconBase>;
+        const ChevronRight = (props) => <IconBase {...props}><polyline points="9 18 15 12 9 6"/></IconBase>;
+        const X = (props) => <IconBase {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const Eye = (props) => <IconBase {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconBase>;
+        const Save = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
+        const RefreshCw = (props) => <IconBase {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconBase>;
+        const Trophy = (props) => <IconBase {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></IconBase>;
+        const Package = (props) => <IconBase {...props}><path d="m16.5 9.4-9-5.19"/><path d="m21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></IconBase>;
+        const Activity = (props) => <IconBase {...props}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></IconBase>;
+        const FileText = (props) => <IconBase {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></IconBase>;
+
+        const App = () => {
+            // --- 상태 관리 ---
+            const [activeTab, setActiveTab] = useState('search');
+            const [searchType, setSearchType] = useState('standard'); // 'standard', 'product', 'deviceInfo'
+            const [productSearchFilter, setProductSearchFilter] = useState('PRDLST_NM'); 
+            
+            // API Key
+            const [apiKey, setApiKey] = useState(() => {
+                try { return localStorage.getItem('medDevApiKey') || ''; } catch (e) { return ''; }
+            });
+
+            const [searchQuery, setSearchQuery] = useState('');
+            const [loading, setLoading] = useState(false);
+            
+            // 데이터 관리
+            const [rawResults, setRawResults] = useState([]);
+            const [totalRawCount, setTotalRawCount] = useState(0);
+            
+            // 페이지네이션
+            const [apiPage, setApiPage] = useState(1);
+            const [viewPage, setViewPage] = useState(1);
+            const VIEW_ITEMS_PER_PAGE = 10;
+            const API_FETCH_SIZE = 100;
+
+            const [selectedProduct, setSelectedProduct] = useState(null);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+
+            const [error, setError] = useState(null);
+            const [errorDetails, setErrorDetails] = useState(null);
+            const [currentProxy, setCurrentProxy] = useState('');
+            
+            const [useProxy, setUseProxy] = useState(true);
+            const [isTestMode, setIsTestMode] = useState(false);
+
+            // 테마 컬러 (Red & Black)
+            const THEME = {
+                primary: '#C3002F', 
+                secondary: '#000000',
+                bg: '#F5F5F5',
+            };
+
+            // --- Effects ---
+            useEffect(() => {
+                try { if (apiKey) localStorage.setItem('medDevApiKey', apiKey); } catch (e) {}
+            }, [apiKey]);
+
+            useEffect(() => {
+                setRawResults([]);
+                setTotalRawCount(0);
+                setApiPage(1);
+                setViewPage(1);
+                setError(null);
+                setErrorDetails(null);
+            }, [searchType]);
+
+            // --- Helper: HTML 태그 제거 ---
+            const stripHtml = (html) => {
+                if (!html) return "-";
+                const tmp = document.createElement("DIV");
+                tmp.innerHTML = html;
+                return tmp.textContent || tmp.innerText || "-";
+            };
+
+            // --- API Logic ---
+            const URLS = {
+                standard: "http://apis.data.go.kr/1471000/MdeqStdCmdtInfoService01/getMdeqStdCmdtInfoInq01",
+                product: "http://apis.data.go.kr/1471000/MdeqPrdlstCmdtInfoService01/getMdeqPrdlstCmdtInfoInq01",
+                deviceInfo: "http://apis.data.go.kr/1471000/MdeqPrdlstInfoService02/getMdeqPrdlstInfoInq02", // 기존: 의료기기품목정보
+                devicePermission: "http://apis.data.go.kr/1471000/MdlpPrdlstPrmisnInfoService/getMdlpPrdlstPrmisnList04" // 신규: 의료기기품목허가정보
+            };
+
+            const parseXML = (xmlText, type) => {
+                if (!xmlText || typeof xmlText !== 'string') throw new Error("데이터가 비어있거나 올바르지 않습니다.");
+                const cleanXML = xmlText.trim();
+                
+                if (!cleanXML.startsWith('<')) {
+                     if (cleanXML.includes('SERVICE_KEY')) throw new Error("인증키 오류: 등록되지 않은 키이거나 만료되었습니다.");
+                     if (cleanXML.includes('LIMITED_NUMBER')) throw new Error("트래픽 초과: 일일 허용량을 초과했습니다.");
+                     if (cleanXML.startsWith('{')) throw new Error("JSON 형식이지만 XML로 처리되었습니다.");
+                     if (cleanXML.toLowerCase().startsWith("<!doctype html") || cleanXML.includes("<html")) {
+                        throw new Error("서버 연결 실패: 프록시 서버 에러 또는 잘못된 요청입니다.");
+                     }
+                     throw new Error(`응답 형식이 올바르지 않습니다 (XML 아님): ${cleanXML.substring(0, 50)}...`);
+                }
+
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(cleanXML, "text/xml");
+                
+                const parseError = xmlDoc.querySelector("parsererror");
+                if (parseError) {
+                    throw new Error(`XML 파싱 오류: ${parseError.textContent}`);
+                }
+
+                const cmmMsgHeader = xmlDoc.querySelector("cmmMsgHeader");
+                if (cmmMsgHeader) {
+                    const errMsg = cmmMsgHeader.querySelector("errMsg")?.textContent;
+                    const returnAuthMsg = cmmMsgHeader.querySelector("returnAuthMsg")?.textContent;
+                    throw new Error(`API 오류: ${errMsg} (${returnAuthMsg})`);
+                }
+
+                const resultCode = xmlDoc.querySelector("header > resultCode")?.textContent;
+                const resultMsg = xmlDoc.querySelector("header > resultMsg")?.textContent;
+
+                if (resultCode && resultCode !== "00") {
+                    throw new Error(`API 오류 (${resultCode}): ${resultMsg}`);
+                }
+
+                const totalCountNode = xmlDoc.querySelector("body > totalCount");
+                const total = totalCountNode ? parseInt(totalCountNode.textContent, 10) : 0;
+
+                const items = xmlDoc.querySelectorAll("body > items > item");
+                
+                const parsedItems = Array.from(items).map(item => {
+                    const getText = (tag) => item.querySelector(tag)?.textContent || "";
+
+                    if (type === 'standard') {
+                        return {
+                            id: getText("CMDT_CD") + Math.random(),
+                            CMDT_CD: getText("CMDT_CD"),
+                            CMDT_NM: getText("CMDT_NM"),
+                            UPR_CMDT_CD: getText("UPR_CMDT_CD"),
+                            RPRS_YN: getText("RPRS_YN")
+                        };
+                    } else if (type === 'product') {
+                        return {
+                            id: getText("SEQ") + Math.random(),
+                            PRDLST_NM: getText("PRDLST_NM"), 
+                            MEDDEV_ITEM_NO: getText("MEDDEV_ITEM_NO"), 
+                            CMDT_NM_INFO: getText("CMDT_NM_INFO"), 
+                            CMDT_DIVS_CD: getText("CMDT_DIVS_CD"), 
+                            APRV_YN: getText("APRV_YN"), 
+                            HMBD_CNTC_YN: getText("HMBD_CNTC_YN") 
+                        };
+                    } else if (type === 'deviceInfo') {
+                        return {
+                            id: getText("MEDDEV_ITEM_NO") + Math.random(),
+                            PRDLST_NM: getText("PRDLST_NM"),
+                            MEDDEV_ITEM_NO: getText("MEDDEV_ITEM_NO"),
+                            PRMSN_YMD: getText("PRMSN_YMD"),
+                            USE_PURPS_CONT: getText("USE_PURPS_CONT"),
+                            USE_MTH_CONT: getText("USE_MTH_CONT"),
+                            ATTN_MTTR_CONT: getText("ATTN_MTTR_CONT"),
+                            VALID_PRD_CN: getText("VALID_PRD_CN"),
+                            MNFC_MTH_CONT: getText("MNFC_MTH_CONT"),
+                            SHAPE_STRUC_CONT: getText("SHAPE_STRUC_CONT"),
+                            // Add ENTRPS (ENTP_NM) and TYPE_NAME
+                            ENTRPS: getText("ENTRPS") || getText("ENTP_NM"),
+                            TYPE_NAME: getText("TYPE_NAME") || getText("MDL_NM"),
+                            GRADE: getText("GRADE"),
+                            ME_PRDLST_NM: getText("ME_PRDLST_NM") || getText("PRDLST_NM") 
+                        };
+                    }
+                    return {};
+                });
+
+                return { total, items: parsedItems };
+            };
+
+            const parseJSON = (data, type) => {
+                const jsonData = typeof data === 'string' ? JSON.parse(data) : data;
+                
+                if (jsonData.cmmMsgHeader) throw new Error(`API 오류: ${jsonData.cmmMsgHeader.errMsg}`);
+                if (jsonData.response?.header?.resultCode && jsonData.response.header.resultCode !== '00') {
+                    throw new Error(`API 오류: ${jsonData.response.header.resultMsg}`);
+                }
+
+                const body = jsonData.response?.body;
+                if (!body) throw new Error("JSON 구조가 예상과 다릅니다. (response.body 없음)");
+
+                const total = body.totalCount || 0;
+                const itemsRaw = body.items?.item || [];
+                const itemsArray = Array.isArray(itemsRaw) ? itemsRaw : [itemsRaw];
+
+                const parsedItems = itemsArray.map((item, idx) => {
+                    const getVal = (key) => item[key] || "";
+
+                    if (type === 'standard') {
+                        return {
+                            id: getVal("CMDT_CD") + idx,
+                            CMDT_CD: getVal("CMDT_CD"),
+                            CMDT_NM: getVal("CMDT_NM"),
+                            UPR_CMDT_CD: getVal("UPR_CMDT_CD"),
+                            RPRS_YN: getVal("RPRS_YN")
+                        };
+                    } else if (type === 'product') {
+                        return {
+                            id: getVal("SEQ") + idx,
+                            PRDLST_NM: getVal("PRDLST_NM"),
+                            MEDDEV_ITEM_NO: getVal("MEDDEV_ITEM_NO"),
+                            CMDT_NM_INFO: getVal("CMDT_NM_INFO"),
+                            CMDT_DIVS_CD: getVal("CMDT_DIVS_CD"),
+                            APRV_YN: getVal("APRV_YN"),
+                            HMBD_CNTC_YN: getVal("HMBD_CNTC_YN")
+                        };
+                    } else if (type === 'deviceInfo') {
+                        return {
+                            id: getVal("MEDDEV_ITEM_NO") + idx,
+                            PRDLST_NM: getVal("PRDLST_NM"),
+                            MEDDEV_ITEM_NO: getVal("MEDDEV_ITEM_NO"),
+                            PRMSN_YMD: getVal("PRMSN_YMD"),
+                            USE_PURPS_CONT: getVal("USE_PURPS_CONT"),
+                            USE_MTH_CONT: getVal("USE_MTH_CONT"),
+                            ATTN_MTTR_CONT: getVal("ATTN_MTTR_CONT"),
+                            VALID_PRD_CN: getVal("VALID_PRD_CN"),
+                            MNFC_MTH_CONT: getVal("MNFC_MTH_CONT"),
+                            SHAPE_STRUC_CONT: getVal("SHAPE_STRUC_CONT"),
+                            // Add ENTRPS (ENTP_NM) and TYPE_NAME
+                            ENTRPS: getVal("ENTRPS") || getVal("ENTP_NM"),
+                            TYPE_NAME: getVal("TYPE_NAME") || getVal("MDL_NM"),
+                            GRADE: getVal("GRADE"),
+                            ME_PRDLST_NM: getVal("ME_PRDLST_NM") || getVal("PRDLST_NM")
+                        };
+                    }
+                    return {};
+                });
+
+                return { total, items: parsedItems };
+            };
+
+            const fetchWithRetries = async (targetUrl) => {
+                const proxies = [
+                    { name: 'AllOrigins (JSON)', url: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, isJsonWrapper: true },
+                    { name: 'CORS Proxy IO', url: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`, isJsonWrapper: false },
+                    { name: 'ThingProxy', url: (u) => `https://thingproxy.freeboard.io/fetch/${u}`, isJsonWrapper: false }
+                ];
+
+                let lastError = null;
+
+                if (!useProxy) {
+                    setCurrentProxy('Direct Connection');
+                    const response = await fetch(targetUrl);
+                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                    return await response.text();
+                }
+
+                for (const proxy of proxies) {
+                    try {
+                        setCurrentProxy(`우회 서버 시도 중: ${proxy.name}...`);
+                        const fetchUrl = proxy.url(targetUrl);
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 15000);
+                        
+                        const response = await fetch(fetchUrl, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) throw new Error(`Proxy ${proxy.name} responded with ${response.status}`);
+
+                        if (proxy.isJsonWrapper) {
+                            const wrapperData = await response.json();
+                            if (!wrapperData.contents) throw new Error("Proxy response empty");
+                            return wrapperData.contents; 
+                        } else {
+                            const text = await response.text();
+                            if (text.includes("Check your internet connection") || text.includes("<title>Error</title>")) {
+                                throw new Error("Invalid response from proxy");
+                            }
+                            return text;
+                        }
+
+                    } catch (e) {
+                        console.warn(`Proxy ${proxy.name} failed:`, e);
+                        lastError = e;
+                    }
+                }
+                throw lastError || new Error("모든 우회 서버 연결에 실패했습니다.");
+            };
+
+            const executeSearch = async (targetApiPage = 1) => {
+                if (!searchQuery && !isTestMode) {
+                    setError("검색어를 입력해주세요.");
+                    return;
+                }
+                if (!apiKey && !isTestMode) {
+                    setError("설정 탭에서 API 인증키를 입력해주세요.");
+                    setActiveTab('settings');
+                    return;
+                }
+
+                setLoading(true);
+                setError(null);
+                setErrorDetails(null);
+                if (targetApiPage === 1) setRawResults([]);
+
+                try {
+                    if (isTestMode) {
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                        let mockData = [];
+                        const mockTotal = 250;
+                        const baseId = (targetApiPage - 1) * API_FETCH_SIZE;
+
+                        if (searchType === 'standard') {
+                            mockData = Array(API_FETCH_SIZE).fill(null).map((_, i) => ({
+                                id: baseId + i,
+                                CMDT_CD: `M${baseId + i}`,
+                                CMDT_NM: `테스트 원자재 ${baseId + i}`,
+                                UPR_CMDT_CD: "9000",
+                                RPRS_YN: "Y"
+                            }));
+                        } else if (searchType === 'product') {
+                            mockData = Array(API_FETCH_SIZE).fill(null).map((_, i) => {
+                                const groupIdx = Math.floor((baseId + i) / 5);
+                                return {
+                                    id: baseId + i,
+                                    PRDLST_NM: `테스트 품목 ${groupIdx}`,
+                                    MEDDEV_ITEM_NO: `제허 00-${1000 + groupIdx} 호`,
+                                    CMDT_NM_INFO: `원자재 ${i}`,
+                                    CMDT_DIVS_CD: "원재료",
+                                    APRV_YN: "예",
+                                    HMBD_CNTC_YN: "예"
+                                };
+                            });
+                        } else {
+                            // deviceInfo Mock (Merged fields with ENTRPS and TYPE_NAME)
+                            mockData = Array(API_FETCH_SIZE).fill(null).map((_, i) => {
+                                const randomYear = 2000 + Math.floor(Math.random() * 25);
+                                const randomMonth = 1 + Math.floor(Math.random() * 12);
+                                const randomDay = 1 + Math.floor(Math.random() * 28);
+                                const dateStr = `${randomYear}-${String(randomMonth).padStart(2, '0')}-${String(randomDay).padStart(2, '0')}`;
+                                return {
+                                    id: baseId + i,
+                                    PRDLST_NM: `${searchQuery || '의료기기'} 상세 품목 ${baseId + i}`,
+                                    MEDDEV_ITEM_NO: `수허 24-${5000 + baseId + i} 호`,
+                                    PRMSN_YMD: dateStr,
+                                    USE_PURPS_CONT: "환자의 진단 및 치료를 위해 사용되는 의료기기입니다.",
+                                    USE_MTH_CONT: "1. 전원을 켠다. 2. 환부게 갖다 댄다.",
+                                    ATTN_MTTR_CONT: "사용 전 반드시 매뉴얼을 숙지하십시오.",
+                                    VALID_PRD_CN: "제조일로부터 3년",
+                                    MNFC_MTH_CONT: "GMP 인증 시설에서 제조됨",
+                                    SHAPE_STRUC_CONT: "본체와 프로브로 구성됨",
+                                    ENTRPS: `(주)테스트제조사 ${i}`,
+                                    TYPE_NAME: `MODEL-X${i}`,
+                                    GRADE: `${(i % 4) + 1}등급`,
+                                    ME_PRDLST_NM: `의료용 분류 ${i}`
+                                };
+                            });
+                        }
+                        
+                        if (searchType === 'deviceInfo') {
+                            mockData.sort((a, b) => {
+                                const dateA = new Date(a.PRMSN_YMD);
+                                const dateB = new Date(b.PRMSN_YMD);
+                                return dateB - dateA;
+                            });
+                        }
+                        
+                        setRawResults(mockData);
+                        setTotalRawCount(mockTotal);
+                        setApiPage(targetApiPage);
+                        setViewPage(1);
+                        setCurrentProxy("Test Mode");
+
+                    } else {
+                        const queryParams = new URLSearchParams({
+                            pageNo: targetApiPage.toString(),
+                            numOfRows: API_FETCH_SIZE.toString()
+                        });
+
+                        // Standard & Product API Logic (Single API)
+                        if (searchType !== 'deviceInfo') {
+                            if (searchType === 'standard') queryParams.append('CMDT_NM', searchQuery);
+                            else queryParams.append(productSearchFilter, searchQuery);
+
+                            const isEncodedKey = apiKey.includes('%');
+                            const serviceKeyParam = isEncodedKey ? apiKey : encodeURIComponent(apiKey);
+                            const endpoint = URLS[searchType];
+                            const targetUrl = `${endpoint}?ServiceKey=${serviceKeyParam}&${queryParams.toString()}`;
+                            
+                            const rawData = await fetchWithRetries(targetUrl);
+                            
+                            // Debug logging
+                            const debugStr = typeof rawData === 'string' ? rawData : JSON.stringify(rawData, null, 2);
+                            setErrorDetails(debugStr.substring(0, 1000));
+
+                            // Plain text error check
+                            if (typeof rawData === 'string') {
+                                if (rawData.includes('SERVICE_KEY_IS_NOT_REGISTERED')) throw new Error("인증키 오류: 등록되지 않은 인증키입니다.");
+                                if (rawData.includes('LIMITED_NUMBER_OF_SERVICE_REQUESTS')) throw new Error("트래픽 초과: 일일 사용량을 초과했습니다.");
+                            }
+
+                            // Parse & Set
+                            let parseResult;
+                            if (typeof rawData === 'object' || (typeof rawData === 'string' && rawData.trim().startsWith('{'))) {
+                                parseResult = parseJSON(rawData, searchType);
+                            } else {
+                                parseResult = parseXML(rawData, searchType);
+                            }
+                            setRawResults(parseResult.items);
+                            setTotalRawCount(parseResult.total);
+                        
+                        } else {
+                            // Device Info Logic (Dual API Fetch & Merge)
+                            const isEncodedKey = apiKey.includes('%');
+                            const serviceKeyParam = isEncodedKey ? apiKey : encodeURIComponent(apiKey);
+                            
+                            queryParams.append('PRDLST_NM', searchQuery); // Search param for both APIs
+                            const qs = queryParams.toString();
+
+                            // Construct URLs
+                            const url1 = `${URLS.deviceInfo}?ServiceKey=${serviceKeyParam}&${qs}`; // Old API (Details)
+                            const url2 = `${URLS.devicePermission}?ServiceKey=${serviceKeyParam}&${qs}`; // New API (Company, Grade, Model)
+
+                            // Parallel Fetch
+                            const results = await Promise.allSettled([
+                                fetchWithRetries(url1),
+                                fetchWithRetries(url2)
+                            ]);
+
+                            // Error handling for both failing
+                            if (results.every(r => r.status === 'rejected')) {
+                                throw new Error("모든 API 호출에 실패했습니다: " + results[0].reason?.message);
+                            }
+
+                            const parseDataSafe = (res) => {
+                                if (res.status !== 'fulfilled') return [];
+                                const raw = res.value;
+                                try {
+                                    // Check plain text error before parsing
+                                    if (typeof raw === 'string') {
+                                        if (raw.includes('SERVICE_KEY')) return []; // Skip this source if error
+                                        if (raw.includes('LIMITED_NUMBER')) return [];
+                                    }
+                                    return typeof raw === 'object' || (typeof raw === 'string' && raw.trim().startsWith('{')) 
+                                        ? parseJSON(raw, 'deviceInfo').items 
+                                        : parseXML(raw, 'deviceInfo').items;
+                                } catch (e) {
+                                    console.warn("Merge Parse Error ignored:", e);
+                                    return [];
+                                }
+                            };
+
+                            const items1 = parseDataSafe(results[0]);
+                            const items2 = parseDataSafe(results[1]);
+
+                            // Merge & Deduplicate based on MEDDEV_ITEM_NO
+                            // Key format might differ (whitespace), so we normalize
+                            const mergedMap = new Map();
+
+                            const normalizeKey = (key) => key ? key.replace(/\s+/g, '').trim() : Math.random().toString();
+
+                            const mergeItems = (source) => {
+                                source.forEach(item => {
+                                    const key = normalizeKey(item.MEDDEV_ITEM_NO);
+                                    if (mergedMap.has(key)) {
+                                        // Update existing with new fields if they are not empty
+                                        const existing = mergedMap.get(key);
+                                        Object.keys(item).forEach(field => {
+                                            if (item[field] && item[field] !== '-' && item[field] !== '') {
+                                                existing[field] = item[field];
+                                            }
+                                        });
+                                    } else {
+                                        mergedMap.set(key, item);
+                                    }
+                                });
+                            };
+
+                            // Prioritize items2 (Permission Info) for Company/Grade/Model, items1 (Detail Info) for Description
+                            mergeItems(items1);
+                            mergeItems(items2);
+
+                            const mergedList = Array.from(mergedMap.values());
+
+                            // Sort by Date Descending
+                            mergedList.sort((a, b) => {
+                                const dateA = a.PRMSN_YMD && a.PRMSN_YMD !== '-' ? new Date(a.PRMSN_YMD) : new Date(0);
+                                const dateB = b.PRMSN_YMD && b.PRMSN_YMD !== '-' ? new Date(b.PRMSN_YMD) : new Date(0);
+                                return dateB - dateA;
+                            });
+
+                            setRawResults(mergedList);
+                            setTotalRawCount(mergedList.length); 
+                        }
+
+                        setApiPage(targetApiPage);
+                        setViewPage(1);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    setError(err.message || "알 수 없는 오류가 발생했습니다.");
+                } finally {
+                    setLoading(false);
+                    if (!isTestMode) setCurrentProxy('');
+                }
+            };
+
+            const handleSearchSubmit = (e) => {
+                e.preventDefault();
+                executeSearch(1);
+            };
+
+            // Data Processing
+            const processedData = useMemo(() => {
+                if (searchType === 'product') {
+                    const groups = {};
+                    rawResults.forEach(item => {
+                        const key = item.MEDDEV_ITEM_NO;
+                        if (!groups[key]) {
+                            groups[key] = { ...item, materials: [] };
+                        }
+                        groups[key].materials.push(item);
+                    });
+                    return Object.values(groups);
+                } else {
+                    return rawResults;
+                }
+            }, [rawResults, searchType]);
+
+            const currentViewData = useMemo(() => {
+                const startIdx = (viewPage - 1) * VIEW_ITEMS_PER_PAGE;
+                const endIdx = startIdx + VIEW_ITEMS_PER_PAGE;
+                return processedData.slice(startIdx, endIdx);
+            }, [processedData, viewPage]);
+
+            const totalViewPages = Math.ceil(processedData.length / VIEW_ITEMS_PER_PAGE);
+
+            const handleViewPageChange = (newPage) => setViewPage(newPage);
+            const openProductModal = (product) => { setSelectedProduct(product); setIsModalOpen(true); };
+            const closeProductModal = () => { setIsModalOpen(false); setSelectedProduct(null); };
+            const getRowNumber = (index) => (viewPage - 1) * VIEW_ITEMS_PER_PAGE + index + 1;
+
+            // --- Render ---
+            return (
+                <div className="min-h-screen flex flex-col font-sans" style={{ backgroundColor: '#F5F5F5' }}>
+                    {/* Header */}
+                    <header className="text-white p-4 shadow-lg sticky top-0 z-10" style={{ backgroundColor: THEME.primary }}>
+                        <div className="max-w-4xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                {/* Logo Removed, Title Updated */}
+                                <div>
+                                    <h1 className="text-xl font-black italic tracking-wider">프라임시스템™</h1>
+                                    <p className="text-xs text-white/80 font-medium">의료기기 정보 서비스</p>
+                                </div>
+                            </div>
+                            <div className="text-xs bg-black/30 px-3 py-1.5 rounded-full flex items-center gap-1 border border-white/20">
+                                <Save className="w-3 h-3" /> 
+                                <span className="font-semibold">Auto-Saved</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 max-w-4xl mx-auto w-full p-4">
+                        {/* Tabs */}
+                        <div className="flex space-x-1 mb-6 bg-white p-1.5 rounded-xl shadow-sm border border-gray-200">
+                            <button
+                                onClick={() => setActiveTab('search')}
+                                className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center space-x-2 ${activeTab === 'search' ? 'text-white shadow-md transform scale-105' : 'text-gray-500 hover:bg-gray-100'}`}
+                                style={{ backgroundColor: activeTab === 'search' ? THEME.secondary : 'transparent' }}
+                            >
+                                <Search className="w-4 h-4" /> <span>조회 및 검색</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('settings')}
+                                className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center space-x-2 ${activeTab === 'settings' ? 'text-white shadow-md transform scale-105' : 'text-gray-500 hover:bg-gray-100'}`}
+                                style={{ backgroundColor: activeTab === 'settings' ? THEME.secondary : 'transparent' }}
+                            >
+                                <Settings className="w-4 h-4" /> <span>API 설정</span>
+                            </button>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px] relative">
+                            {activeTab === 'search' && (
+                                <div className="p-6 space-y-6">
+                                    <div className="text-center space-y-2 mb-6">
+                                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">DATA SEARCH</h2>
+                                        <div className="h-1 w-16 mx-auto rounded-full" style={{ backgroundColor: THEME.primary }}></div>
+                                        <p className="text-gray-500 text-sm">원하는 데이터 유형을 선택하고 검색하세요.</p>
+                                    </div>
+
+                                    {/* Search Type Tabs (Expanded) */}
+                                    <div className="max-w-2xl mx-auto bg-gray-100 p-1.5 rounded-lg flex mb-4 border border-gray-200 gap-1 overflow-x-auto">
+                                        <button onClick={() => { setSearchType('standard'); setRawResults([]); setTotalRawCount(0); }} className={`flex-1 py-2 px-2 rounded-md text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${searchType === 'standard' ? 'bg-white shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`} style={{ color: searchType === 'standard' ? THEME.primary : undefined }}>
+                                            <Layers className="w-4 h-4" /> 표준 원자재
+                                        </button>
+                                        <button onClick={() => { setSearchType('product'); setRawResults([]); setTotalRawCount(0); }} className={`flex-1 py-2 px-2 rounded-md text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${searchType === 'product' ? 'bg-white shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`} style={{ color: searchType === 'product' ? THEME.primary : undefined }}>
+                                            <Box className="w-4 h-4" /> 품목별 원자재
+                                        </button>
+                                        <button onClick={() => { setSearchType('deviceInfo'); setRawResults([]); setTotalRawCount(0); }} className={`flex-1 py-2 px-2 rounded-md text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${searchType === 'deviceInfo' ? 'bg-white shadow-sm ring-1 ring-black/5' : 'text-gray-400 hover:text-gray-600'}`} style={{ color: searchType === 'deviceInfo' ? THEME.primary : undefined }}>
+                                            <Activity className="w-4 h-4" /> 의료기기 정보
+                                        </button>
+                                    </div>
+
+                                    {/* Search Form */}
+                                    <form onSubmit={handleSearchSubmit} className="flex gap-2 max-w-xl mx-auto">
+                                        <div className="relative flex-1 flex shadow-sm rounded-lg overflow-hidden border border-gray-300 focus-within:ring-2 focus-within:ring-[#C3002F] focus-within:border-[#C3002F] transition-all">
+                                            {searchType === 'product' && (
+                                                <div className="relative bg-gray-50 border-r border-gray-200">
+                                                    <select value={productSearchFilter} onChange={(e) => setProductSearchFilter(e.target.value)} className="h-full pl-3 pr-8 bg-transparent text-sm font-medium outline-none appearance-none cursor-pointer text-gray-700">
+                                                        <option value="PRDLST_NM">품목명</option>
+                                                        <option value="CMDT_NM_INFO">원자재명</option>
+                                                    </select>
+                                                    <Filter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
+                                                </div>
+                                            )}
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                                <input 
+                                                    type="text" 
+                                                    value={searchQuery} 
+                                                    onChange={(e) => setSearchQuery(e.target.value)} 
+                                                    placeholder={
+                                                        searchType === 'standard' ? "원자재명 입력" :
+                                                        searchType === 'product' ? (productSearchFilter === 'PRDLST_NM' ? "품목명 입력" : "원자재명 입력") :
+                                                        "품목명 입력 (예: 혈당측정기)"
+                                                    } 
+                                                    className="w-full pl-10 pr-4 py-3 outline-none bg-white placeholder-gray-400" 
+                                                />
+                                            </div>
+                                        </div>
+                                        <button type="submit" disabled={loading} className="text-white px-6 py-3 rounded-lg font-bold transition-colors flex items-center justify-center shadow-md hover:opacity-90 min-w-[100px]" style={{ backgroundColor: THEME.primary }}>
+                                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : '검색'}
+                                        </button>
+                                    </form>
+
+                                    {/* Loading / Error */}
+                                    {loading && <div className="text-center text-xs animate-pulse flex items-center justify-center gap-2 font-medium mt-3" style={{ color: THEME.primary }}><RefreshCw className="w-3 h-3 animate-spin" /> {currentProxy || "데이터를 불러오는 중..."}</div>}
+                                    {error && (
+                                        <div className="bg-red-50 text-red-700 p-4 rounded-lg flex flex-col gap-2 text-sm animate-fade-in border border-red-100 mt-4">
+                                            <div className="flex items-start gap-3"><AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" /><div className="font-bold">{error}</div></div>
+                                            {errorDetails && <div className="ml-8 mt-2 text-xs text-red-500 overflow-x-auto whitespace-pre-wrap max-h-40 bg-white p-2 border border-red-200 rounded">{errorDetails}</div>}
+                                        </div>
+                                    )}
+
+                                    {/* Results */}
+                                    {!loading && !error && currentViewData.length > 0 && (
+                                        <div className="mt-8 animate-fade-in">
+                                            <div className="flex flex-col sm:flex-row justify-between items-end mb-3 px-1 gap-2">
+                                                <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2"><div className="w-1.5 h-5 rounded-sm" style={{ backgroundColor: THEME.secondary }}></div> {searchType === 'standard' ? '검색 결과' : searchType === 'product' ? '품목별 목록' : '의료기기 정보'}</h3>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    {searchType === 'product' ? (
+                                                        <>
+                                                            <span className="bg-gray-100 text-gray-500 px-2 py-1 rounded font-medium text-xs">Raw: <span className="text-black font-bold">{totalRawCount}</span></span>
+                                                            <span className="bg-black/5 text-black px-3 py-1 rounded font-bold border border-black/10 flex items-center gap-1"><Package className="w-3 h-3" /> 품목: {processedData.length}건</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">Total <span className="text-black font-bold">{totalRawCount}</span></span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="text-white font-bold border-b border-gray-200" style={{ backgroundColor: THEME.secondary }}>
+                                                        {searchType === 'standard' && (
+                                                            <tr>
+                                                                <th className="px-4 py-3 w-16 text-center">No.</th>
+                                                                <th className="px-4 py-3 w-24">코드</th>
+                                                                <th className="px-4 py-3">원자재 명</th>
+                                                                <th className="px-4 py-3 w-32">상위코드</th>
+                                                                <th className="px-4 py-3 w-24 text-center">대표여부</th>
+                                                            </tr>
+                                                        )}
+                                                        {searchType === 'product' && (
+                                                            <tr>
+                                                                <th className="px-4 py-3 w-16 text-center">No.</th>
+                                                                <th className="px-4 py-3">품목명</th>
+                                                                <th className="px-4 py-3 w-40">허가번호</th>
+                                                                <th className="px-4 py-3 w-32 text-center">등록 원자재</th>
+                                                                <th className="px-4 py-3 w-24 text-center">상세</th>
+                                                            </tr>
+                                                        )}
+                                                        {searchType === 'deviceInfo' && (
+                                                            <tr>
+                                                                <th className="px-4 py-3 w-16 text-center">No.</th>
+                                                                <th className="px-4 py-3 w-32">업체명</th>
+                                                                <th className="px-4 py-3">품목명</th>
+                                                                <th className="px-4 py-3 w-40">허가번호</th>
+                                                                <th className="px-4 py-3 w-24 text-center">정보</th>
+                                                            </tr>
+                                                        )}
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {searchType === 'standard' && currentViewData.map((item, idx) => (
+                                                            <tr key={idx} className="hover:bg-red-50 transition-colors">
+                                                                <td className="px-4 py-3 text-center text-gray-400 font-mono text-xs">{getRowNumber(idx)}</td>
+                                                                <td className="px-4 py-3 font-mono text-gray-500 font-bold">{item.CMDT_CD}</td>
+                                                                <td className="px-4 py-3 font-medium text-gray-900">{item.CMDT_NM}</td>
+                                                                <td className="px-4 py-3 text-gray-500">{item.UPR_CMDT_CD}</td>
+                                                                <td className="px-4 py-3 text-center">{item.RPRS_YN === 'Y' ? <span className="inline-block px-2 py-0.5 bg-red-100 text-[#C3002F] rounded text-xs font-bold">Y</span> : <span className="text-gray-300">-</span>}</td>
+                                                            </tr>
+                                                        ))}
+                                                        {searchType === 'product' && currentViewData.map((group, idx) => (
+                                                            <tr key={idx} className="hover:bg-red-50 transition-colors cursor-pointer group" onClick={() => openProductModal(group)}>
+                                                                <td className="px-4 py-3 text-center text-gray-400 font-mono text-xs">{getRowNumber(idx)}</td>
+                                                                <td className="px-4 py-3 font-bold text-gray-900 group-hover:text-[#C3002F] transition-colors">{group.PRDLST_NM}</td>
+                                                                <td className="px-4 py-3 text-gray-500 text-xs font-mono">{group.MEDDEV_ITEM_NO}</td>
+                                                                <td className="px-4 py-3 text-center"><span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-bold group-hover:bg-[#C3002F] group-hover:text-white transition-all">{group.materials.length}건</span></td>
+                                                                <td className="px-4 py-3 text-center"><button className="p-1.5 rounded-full hover:bg-black/5 text-gray-400 group-hover:text-[#C3002F] transition-colors"><Eye className="w-4 h-4" /></button></td>
+                                                            </tr>
+                                                        ))}
+                                                        {searchType === 'deviceInfo' && currentViewData.map((item, idx) => (
+                                                            <tr key={idx} className="hover:bg-red-50 transition-colors cursor-pointer group" onClick={() => openProductModal(item)}>
+                                                                <td className="px-4 py-3 text-center text-gray-400 font-mono text-xs">{getRowNumber(idx)}</td>
+                                                                <td className="px-4 py-3 text-gray-700 text-xs">{item.ENTRPS || '-'}</td>
+                                                                <td className="px-4 py-3 font-bold text-gray-900 group-hover:text-[#C3002F] transition-colors">{item.PRDLST_NM}</td>
+                                                                <td className="px-4 py-3 text-gray-500 text-xs font-mono">{item.MEDDEV_ITEM_NO}</td>
+                                                                <td className="px-4 py-3 text-center"><button className="p-1.5 rounded-full hover:bg-black/5 text-gray-400 group-hover:text-[#C3002F] transition-colors"><FileText className="w-4 h-4" /></button></td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            {/* Pagination */}
+                                            <div className="flex flex-col items-center mt-8 gap-4">
+                                                {totalViewPages > 1 && (
+                                                    <div className="flex items-center gap-2">
+                                                        <button onClick={() => handleViewPageChange(viewPage - 1)} disabled={viewPage === 1} className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed bg-white text-gray-600"><ChevronLeft className="w-4 h-4" /></button>
+                                                        <span className="text-sm font-bold text-gray-800 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm">{viewPage} <span className="text-gray-400 font-normal">/</span> {totalViewPages}</span>
+                                                        <button onClick={() => handleViewPageChange(viewPage + 1)} disabled={viewPage === totalViewPages} className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed bg-white text-gray-600"><ChevronRight className="w-4 h-4" /></button>
+                                                    </div>
+                                                )}
+                                                {(totalRawCount > apiPage * API_FETCH_SIZE) && (
+                                                    <button onClick={() => executeSearch(apiPage + 1)} className="text-xs flex items-center gap-1 text-gray-500 hover:text-black font-medium underline decoration-gray-300 underline-offset-4"><RefreshCw className="w-3 h-3" /> 다음 데이터 배치 불러오기 (API Page {apiPage + 1})</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'settings' && (
+                                <div className="p-6 space-y-6">
+                                    <div className="border-b border-gray-200 pb-4"><h2 className="text-xl font-bold text-gray-900 mb-1">API 설정</h2><p className="text-gray-500 text-sm">입력하신 인증키는 브라우저에 안전하게 저장됩니다.</p></div>
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">API 인증키 (Decoding Key)</label>
+                                            <div className="relative"><Key className="absolute left-3 top-3 text-gray-400 w-5 h-5" /><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="공공데이터포털 인증키 입력..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C3002F] outline-none transition-all" /></div>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 border rounded-xl bg-gray-50 border-gray-200">
+                                            <div className="flex items-start gap-3"><div className="p-2 bg-white rounded-lg shadow-sm"><ShieldAlert className="w-5 h-5 text-gray-700" /></div><div><label className="block text-sm font-bold text-gray-800">테스트 모드</label><p className="text-xs text-gray-500 mt-1">API 호출 없이 UI 확인</p></div></div>
+                                            <button onClick={() => setIsTestMode(!isTestMode)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${isTestMode ? 'bg-gray-800' : 'bg-gray-300'}`}><span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isTestMode ? 'translate-x-6' : 'translate-x-1'}`} /></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal */}
+                        {isModalOpen && selectedProduct && (
+                            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+                                <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+                                    <div className="p-5 flex justify-between items-start text-white" style={{ backgroundColor: THEME.secondary }}>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-white">{selectedProduct.PRDLST_NM}</h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="bg-white/20 px-2 py-0.5 rounded text-xs text-white/90 font-mono">{selectedProduct.MEDDEV_ITEM_NO}</span>
+                                                {searchType === 'deviceInfo' && <span className="bg-white/20 px-2 py-0.5 rounded text-xs text-white/90">허가일: {selectedProduct.PRMSN_YMD || '-'}</span>}
+                                            </div>
+                                        </div>
+                                        <button onClick={closeProductModal} className="p-1.5 hover:bg-white/20 rounded-full transition-colors text-white/80 hover:text-white"><X className="w-6 h-6" /></button>
+                                    </div>
+                                    <div className="p-5 overflow-y-auto flex-1 bg-gray-50">
+                                        {/* Product Details (Material List) */}
+                                        {searchType === 'product' && (
+                                            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
+                                                        <tr><th className="px-4 py-2.5">원자재명</th><th className="px-4 py-2.5 w-32">구분</th><th className="px-4 py-2.5 w-24 text-center">승인</th><th className="px-4 py-2.5 w-24 text-center">인체접촉</th></tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {selectedProduct.materials.map((mat, idx) => (
+                                                            <tr key={idx} className="hover:bg-gray-50"><td className="px-4 py-2.5 text-gray-900 font-medium">{mat.CMDT_NM_INFO}</td><td className="px-4 py-2.5 text-gray-500 text-xs">{mat.CMDT_DIVS_CD}</td><td className="px-4 py-2.5 text-center text-xs">{mat.APRV_YN}</td><td className="px-4 py-2.5 text-center text-xs text-gray-500">{mat.HMBD_CNTC_YN}</td></tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                        {/* Device Info Details */}
+                                        {searchType === 'deviceInfo' && (
+                                            <div className="space-y-6">
+                                                {[
+                                                    { label: '업체명(제조사)', content: selectedProduct.ENTRPS }, 
+                                                    { label: '모델명', content: selectedProduct.TYPE_NAME }, 
+                                                    { label: '등급', content: selectedProduct.GRADE }, 
+                                                    { label: '품목 분류명', content: selectedProduct.ME_PRDLST_NM }, 
+                                                    { label: '사용 목적', content: stripHtml(selectedProduct.USE_PURPS_CONT) },
+                                                    { label: '사용 방법', content: stripHtml(selectedProduct.USE_MTH_CONT) },
+                                                    { label: '주의 사항', content: stripHtml(selectedProduct.ATTN_MTTR_CONT) },
+                                                    { label: '유효 기간', content: stripHtml(selectedProduct.VALID_PRD_CN) },
+                                                    { label: '제조 방법', content: stripHtml(selectedProduct.MNFC_MTH_CONT) },
+                                                    { label: '모양 및 구조', content: stripHtml(selectedProduct.SHAPE_STRUC_CONT) },
+                                                ].map((section, idx) => (
+                                                    // Only render if content exists
+                                                    (section.content && section.content !== '-' && section.content !== '') && (
+                                                        <div key={idx} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                                            <h5 className="font-bold text-gray-800 mb-2 border-b pb-2 flex items-center gap-2">
+                                                                <div className="w-1 h-4 rounded-full" style={{ backgroundColor: THEME.primary }}></div>
+                                                                {section.label}
+                                                            </h5>
+                                                            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{section.content}</p>
+                                                        </div>
+                                                    )
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-4 border-t border-gray-200 bg-white flex justify-end"><button onClick={closeProductModal} className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-bold transition-colors">닫기</button></div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
